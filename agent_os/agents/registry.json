@@ -1,0 +1,6 @@
+{
+  "ORCHESTRATOR": "orchestrator",
+  "PROMPT_GENERATOR": "prompt_generator",
+  "CODE_GENERATOR": "code_generator",
+  "CODE_REVIEWER": "code_reviewer"
+}

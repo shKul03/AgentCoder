@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+/* ─── Design tokens ─────────────────────────────────────────────────────── */
+:root {
+  /* Core palette — "mission control" dark */
+  --bg-root:    #0a0a0f;
+  --bg-primary: #0d0d14;
+  --bg-surface: #12121c;
+  --bg-card:    rgba(18, 18, 30, 0.75);
+  --bg-card-hover: rgba(24, 24, 40, 0.85);
+
+  /* Glass */
+  --border-glass:       rgba(148, 163, 184, 0.10);
+  --border-glass-hover: rgba(148, 163, 184, 0.22);
+  --glass-blur: 18px;
+
+  /* Primary accent (global) */
+  --accent:      #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.28);
+
+  /* Per-agent accent palette */
+  --agent-module-maker:      #818cf8; /* indigo  */
+  --agent-module-maker-glow: rgba(129, 140, 248, 0.22);
+  --agent-prompt-gen:        #a78bfa; /* violet  */
+  --agent-prompt-gen-glow:   rgba(167, 139, 250, 0.22);
+  --agent-code-gen:          #34d399; /* emerald */
+  --agent-code-gen-glow:     rgba(52, 211, 153, 0.22);
+  --agent-code-reviewer:     #fbbf24; /* amber   */
+  --agent-code-reviewer-glow:rgba(251, 191, 36, 0.22);
+
+  /* Text */
+  --text-primary:   #e2e8f0;
+  --text-secondary: #7d8a9a;
+  --text-muted:     #3d4a5c;
+
+  /* Status */
+  --success:       #22c55e;
+  --success-glow:  rgba(34, 197, 94, 0.2);
+  --warning:       #f59e0b;
+  --warning-glow:  rgba(245, 158, 11, 0.2);
+  --error:         #ef4444;
+  --error-glow:    rgba(239, 68, 68, 0.2);
+
+  /* Sidebar */
+  --sidebar-w: 220px;
+
+  /* Notification */
+  --notif-z: 9999;
+}
+
+/* ─── Global resets ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg-root);
+  color: var(--text-primary);
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Monospace for code/terminal contexts */
+.font-mono, code, pre, kbd {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', monospace;
+}
+
+/* ─── Glass card ────────────────────────────────────────────────────────── */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.glass-card:hover {
+  border-color: var(--border-glass-hover);
+  background: var(--bg-card-hover);
+}
+
+/* ─── Scrollbar styling ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.28); }
+
+/* ─── Agent accent helpers ──────────────────────────────────────────────── */
+.agent-module-maker   { --local-accent: var(--agent-module-maker);   --local-glow: var(--agent-module-maker-glow); }
+.agent-prompt-gen     { --local-accent: var(--agent-prompt-gen);     --local-glow: var(--agent-prompt-gen-glow);  }
+.agent-code-gen       { --local-accent: var(--agent-code-gen);       --local-glow: var(--agent-code-gen-glow);    }
+.agent-code-reviewer  { --local-accent: var(--agent-code-reviewer);  --local-glow: var(--agent-code-reviewer-glow); }
+
+/* ─── Status pulse animations ───────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 var(--local-glow, rgba(99,102,241,0.3)); }
+  70%  { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.pulse-active { animation: pulse-ring 2s ease-out infinite; }
+
+/* ─── Notification tray ─────────────────────────────────────────────────── */
+.notif-enter { animation: notif-slide-in 0.22s ease-out; }
+@keyframes notif-slide-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Responsive collapse ───────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root { --sidebar-w: 48px; }
+  .sidebar-label { display: none; }
+}
+
+/* ─── Select / dropdown — always dark, readable in any OS theme ─────────── */
+/*
+ * `color-scheme: dark` tells Chromium/Edge/Firefox to render the native
+ * select popup in dark mode regardless of the OS system theme.
+ * The explicit option colours serve as a fallback for browsers that support
+ * option background/color CSS (Chrome on Windows does).
+ */
+select {
+  color-scheme: dark;
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+}
+select option {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: #6366f1;
+  color: #ffffff;
+}

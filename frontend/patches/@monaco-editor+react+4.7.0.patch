@@ -1,0 +1,55 @@
+diff --git a/node_modules/@monaco-editor/react/tsconfig.json b/node_modules/@monaco-editor/react/tsconfig.json
+index 004dd71..c5b97a7 100644
+--- a/node_modules/@monaco-editor/react/tsconfig.json
++++ b/node_modules/@monaco-editor/react/tsconfig.json
+@@ -1,21 +1,31 @@
+ {
+-  "compilerOptions": {
+-    "module": "esnext",
+-    "lib": ["esnext", "dom", "dom.iterable"],
+-    "target": "es2020",
+-    "declaration": true,
+-    "declarationMap": true,
+-    "outDir": "./dist",
+-    "strict": true,
+-    "skipLibCheck": true,
+-    "noUnusedLocals": true,
+-    "noUnusedParameters": true,
+-    "noImplicitReturns": true,
+-    "noFallthroughCasesInSwitch": true,
+-    "noUncheckedIndexedAccess": true,
+-    "moduleResolution": "node",
+-    "jsx": "react",
+-    "esModuleInterop": true
+-  },
+-  "include": ["src", "tsup.config.ts", "setupTests.ts", "vitest.config.ts"]
++    "compilerOptions":  {
++                            "module":  "esnext",
++                            "lib":  [
++                                        "esnext",
++                                        "dom",
++                                        "dom.iterable"
++                                    ],
++                            "target":  "es2020",
++                            "declaration":  true,
++                            "declarationMap":  true,
++                            "outDir":  "./dist",
++                            "strict":  true,
++                            "skipLibCheck":  true,
++                            "noUnusedLocals":  true,
++                            "noUnusedParameters":  true,
++                            "noImplicitReturns":  true,
++                            "noFallthroughCasesInSwitch":  true,
++                            "noUncheckedIndexedAccess":  true,
++                            "moduleResolution": "bundler",
++                            "jsx":  "react",
++                            "esModuleInterop":  true,
++                            "ignoreDeprecations":  "6.0"
++                        },
++    "include":  [
++                    "src",
++                    "tsup.config.ts",
++                    "setupTests.ts",
++                    "vitest.config.ts"
++                ]
+ }
