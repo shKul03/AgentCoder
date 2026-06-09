@@ -33,6 +33,7 @@ class ProjectConfig(BaseModel):
 
 class OrchestratorConfig(BaseModel):
     max_iterations: int = Field(default=5, ge=1, le=20)
+    max_story_iterations: int = Field(default=3, ge=1, le=10)
     auto_approve_hitl: bool = False
     hitl_timeout_seconds: int = Field(default=0, ge=0)
     convergence_rule: ConvergenceRule = ConvergenceRule.NO_HIGH_SEVERITY
@@ -43,9 +44,9 @@ class CodexConfig(BaseModel):
     timeout_seconds: int = Field(default=1200, ge=30)
     max_retries: int = Field(default=2, ge=0, le=5)
     model_routing: dict[str, str] = Field(default_factory=lambda: {
-        "PROMPT_GENERATOR": "gpt-4.1-mini",
+        "PROMPT_GENERATOR": "gpt-4.1-mini",  # OpenAI fallback — primary is Ollama phi4-mini
         "CODE_GENERATOR": "gpt-4.1",
-        "CODE_REVIEWER": "gpt-4.1-mini",
+        "CODE_REVIEWER": "gpt-4.1-mini",  # OpenAI fallback — primary is Ollama phi4-mini
     })
     # CLI tool to use per agent — defaults to "codex"; also supports "aider", "claude"
     cli_routing: dict[str, str] = Field(default_factory=lambda: {
@@ -203,14 +204,14 @@ OLLAMA_MODELS: list[str] = [
 class OllamaConfig(BaseModel):
     """Connection settings for a remote (or local) Ollama service."""
     base_url: str = "http://localhost:11434"   # override with VPN remote GPU URL
-    model: str = "llama3.1:8b"                # default model on the remote GPU
-    timeout_seconds: int = Field(default=300, ge=30)
+    model: str = "phi4-mini"                  # default model on the remote GPU
+    timeout_seconds: int = Field(default=600, ge=30)  # phi4-mini on CPU needs more time
 
 
 class PromptGeneratorConfig(BaseModel):
     """Which LLM backend to use for prompt generation."""
     provider: str = "ollama"          # "ollama" | "openai"
-    ollama_model: str = "llama3.1:8b"
+    ollama_model: str = "phi4-mini"
     openai_model: str = "gpt-4.1-mini"
 
     @field_validator("provider", mode="before")
@@ -225,7 +226,7 @@ class CodeReviewerConfig(BaseModel):
     """Which LLM backend to use for code review."""
     provider: str = "openai"          # "openai" | "copilot" | "ollama"
     model: str = "gpt-4.1-mini"       # used for openai and copilot providers
-    ollama_model: str = "llama3.1:8b" # used when provider == "ollama"
+    ollama_model: str = "phi4-mini"   # used when provider == "ollama"
 
     @field_validator("provider", mode="before")
     @classmethod
@@ -257,13 +258,8 @@ class AIToolCredential(BaseModel):
 
 class AIToolsConfig(BaseModel):
     """Per-tool authentication & connection settings."""
-    codex: AIToolCredential = AIToolCredential()       # OpenAI Codex CLI
-    claude: AIToolCredential = AIToolCredential()      # Claude Code CLI
-    gemini: AIToolCredential = AIToolCredential()      # Gemini CLI
-    qwen: AIToolCredential = AIToolCredential()        # Qwen Coder CLI
-    deepseek: AIToolCredential = AIToolCredential()    # DeepSeek CLI
-    cursor: AIToolCredential = AIToolCredential()      # Cursor CLI (via cursor-headless)
-    copilot: AIToolCredential = AIToolCredential()     # GitHub Copilot CLI
+    codex: AIToolCredential = AIToolCredential()   # OpenAI Codex CLI
+    claude: AIToolCredential = AIToolCredential()  # Claude Code CLI
 
 
 class AgentOSConfig(BaseModel):
@@ -283,7 +279,7 @@ class AgentOSConfig(BaseModel):
     secrets: SecretsConfig = SecretsConfig()
     github_input: GitHubInputConfig = GitHubInputConfig()
     github_review: GitHubReviewConfig = GitHubReviewConfig()
-    pipeline_mode: str = "standard"  # "standard" | "github_review"
+    pipeline_mode: str = "github_review"  # "standard" | "github_review"
     ai_tools: AIToolsConfig = AIToolsConfig()
     vcs: VCSConfig = VCSConfig()
     ollama: OllamaConfig = OllamaConfig()

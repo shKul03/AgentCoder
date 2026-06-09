@@ -200,6 +200,12 @@ class Orchestrator:
             PipelineStatus.STORY_COMPLETE:          lambda: _ghr.step_story_complete(ctx),
         }
         _is_ghr = (self.config.pipeline_mode == "github_review")
+        if not _is_ghr:
+            logger.warning(
+                "pipeline_mode is '%s' — this project targets github_review mode. "
+                "Standard mode is supported but not the primary workflow.",
+                self.config.pipeline_mode,
+            )
         _DISPATCH = _GHR_DISPATCH if _is_ghr else _STANDARD_DISPATCH
 
         while True:

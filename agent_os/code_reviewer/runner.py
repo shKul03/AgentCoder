@@ -31,6 +31,7 @@ import re
 from pathlib import Path
 from typing import Callable, Optional
 
+from ..agents.context import IdentityContextInjector
 from ..config.schema import AgentOSConfig
 from ..vcs.base import VCSClient
 from .schema import (
@@ -192,7 +193,23 @@ class CodeReviewerRunner:
     ) -> None:
         self._config = config
         self._identity_ctx = identity_ctx
+        self._identity = IdentityContextInjector("CODE_REVIEWER")
         self._vcs_client = vcs_client
+
+    def _build_system_prompt(self) -> str:
+        """Prepend soul + one recent brain entry to the base system prompt."""
+        soul = self._identity.soul()
+        brain = self._identity.recent_brain(max_entries=1)
+        parts: list[str] = []
+        if soul:
+            parts.append(soul)
+        if brain:
+            parts.append(brain)
+        if parts:
+            parts.append("---")
+            parts.append(_SYSTEM_PROMPT)
+            return "\n\n".join(parts)
+        return _SYSTEM_PROMPT
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -429,12 +446,7 @@ class CodeReviewerRunner:
         project_name = self._config.project.name or "the project"
         language = self._config.project.language or "python"
 
-        preamble = (
-            self._identity_ctx.build_preamble() if self._identity_ctx else ""
-        )
-        system_prompt = (
-            (preamble + "\n\n" + _SYSTEM_PROMPT).strip() if preamble else _SYSTEM_PROMPT
-        )
+        system_prompt = self._build_system_prompt()
 
         # In GitHub Review mode, append the story's acceptance criteria so the
         # reviewer validates implementation completeness against them.

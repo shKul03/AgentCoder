@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 from typing import Callable, Optional
 
+from ..agents.context import IdentityContextInjector
 from ..config.schema import AgentOSConfig
 
 logger = logging.getLogger(__name__)
@@ -68,10 +69,28 @@ to resolve any CI failures before declaring done.
 Reason through each finding (root causes, fix ordering, interdependencies) before \
 writing the final fix prompt."""
 
+    # ── Identity-augmented system prompt builder ──────────────────────────────
+
+    def _build_system_prompt(self, base_system: str) -> str:
+        """Prepend soul + one recent brain entry to the base system prompt."""
+        soul = self._identity.soul()
+        brain = self._identity.recent_brain(max_entries=1)
+        parts: list[str] = []
+        if soul:
+            parts.append(soul)
+        if brain:
+            parts.append(brain)
+        if parts:
+            parts.append("---")
+            parts.append(base_system)
+            return "\n\n".join(parts)
+        return base_system
+
     # ── Public API ────────────────────────────────────────────────────────────
 
     def __init__(self, config: AgentOSConfig) -> None:
         self._config = config
+        self._identity = IdentityContextInjector("PROMPT_GENERATOR")
 
     def run(
         self,
@@ -123,8 +142,8 @@ writing the final fix prompt."""
         project_name = self._config.project.name or "the project"
         language = self._config.project.language or "python"
 
-        # Build system prompt — append fork-mode addendum when in GitHub Review mode
-        system_prompt = self._SYSTEM_IMPLEMENTATION
+        # Build system prompt — inject identity context, then fork-mode addendum when needed
+        system_prompt = self._build_system_prompt(self._SYSTEM_IMPLEMENTATION)
         if story_context and story_context.get("is_fork_mode"):
             story_id_str = story_context.get("story_id", "")
             story_title = story_context.get("title", "")
@@ -211,7 +230,7 @@ writing the final fix prompt."""
         model = self._config.codex.model_routing.get("PROMPT_GENERATOR", "gpt-4.1-mini")
 
         return self._stream_llm(
-            system_prompt=self._SYSTEM_FIX,
+            system_prompt=self._build_system_prompt(self._SYSTEM_FIX),
             user_prompt=user_prompt,
             label=f"iter-{iteration}-fix",
             fallback=fallback,

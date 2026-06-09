@@ -58,53 +58,73 @@ async def analyse_dependencies(
     stories: list[dict[str, Any]],
     *,
     api_key: str = "",
-    model: str = "gpt-4o-mini",
+    model: str = "phi4-mini",
 ) -> list[dict[str, Any]]:
     """Call the configured LLM to determine story ordering.
 
-    Falls back to identity order (no dependencies) if the LLM is unavailable
-    or returns malformed JSON — so the pipeline never hard-fails here.
+    Routes to Ollama when ``api_key`` is empty or starts with ``"ollama"``;
+    otherwise routes to OpenAI. Falls back to identity order on any failure.
 
     Args:
         stories: list of dicts with at least ``story_id``, ``title``.
-        api_key: OpenAI API key (passed from the running orchestrator config).
-        model:   OpenAI model name to use for dependency analysis.
+        api_key: OpenAI API key, or empty/"ollama" to use local Ollama.
+        model:   Model identifier — an Ollama model name or an OpenAI model name.
 
     Returns:
         Same list with ``depends_on`` (list[str]) and ``dependency_reason`` (str)
         fields merged in.
     """
+    _use_ollama = not api_key or api_key == "ollama"
+
     try:
-        from openai import AsyncOpenAI  # lazy import
+        from openai import AsyncOpenAI  # lazy import — works for both Ollama and OpenAI
 
-        if not api_key:
-            logger.warning("No OpenAI API key — skipping dependency analysis, using story order as-is")
-            return _no_op_dependencies(stories)
-
-        client = AsyncOpenAI(api_key=api_key)  # type: ignore[arg-type]
         user_prompt = _build_analysis_prompt(stories)
 
-        try:
-            response = await client.chat.completions.create(
-                model=model,
-                response_format={"type": "json_object"},
-                messages=[
+        if _use_ollama:
+            import os
+            ollama_base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+            logger.info("Dependency analysis via Ollama %s @ %s", model, ollama_base)
+            client = AsyncOpenAI(
+                api_key="ollama",
+                base_url=f"{ollama_base}/v1",
+            )
+            # Ollama does not support response_format=json_object for all models;
+            # rely on the system prompt's JSON instruction instead.
+            create_kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": [
                     {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0,
-                max_tokens=2000,
-            )
+                "temperature": 0,
+                "max_tokens": 2000,
+            }
+        else:
+            logger.info("Dependency analysis via OpenAI %s", model)
+            client = AsyncOpenAI(api_key=api_key)  # type: ignore[arg-type]
+            create_kwargs = {
+                "model": model,
+                "response_format": {"type": "json_object"},
+                "messages": [
+                    {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0,
+                "max_tokens": 2000,
+            }
+
+        try:
+            response = await client.chat.completions.create(**create_kwargs)
         except Exception:
             await client.close()
             raise
         await client.close()
 
         raw = response.choices[0].message.content or "{}"
-        # The model wraps the array in an object; accept both forms.
+        # The model may wrap the array in an object; accept both forms.
         parsed = json.loads(raw)
         if isinstance(parsed, dict):
-            # look for any array value
             for v in parsed.values():
                 if isinstance(v, list):
                     parsed = v
@@ -133,7 +153,7 @@ async def analyse_dependencies(
         err_str = str(exc)
         if "401" in err_str or "invalid_api_key" in err_str or "AuthenticationError" in type(exc).__name__:
             logger.warning(
-                "Dependency analysis skipped — OpenAI API key invalid or missing. "
+                "Dependency analysis skipped — API key invalid or missing. "
                 "Stories will be processed in natural order."
             )
         else:
@@ -218,7 +238,7 @@ class StoryQueueManager:
         raw_stories: list[dict[str, Any]],
         *,
         api_key: str = "",
-        model: str = "gpt-4o-mini",
+        model: str = "phi4-mini",
     ) -> list[StoryQueueItem]:
         """Analyse dependencies, sort stories, persist to DB, and return items.
 
@@ -227,8 +247,8 @@ class StoryQueueManager:
         Args:
             raw_stories: list of dicts with at least ``story_id``, ``title``.
                          Optional keys: ``description``, ``acceptance_criteria``.
-            api_key: OpenAI API key for dependency analysis (from orchestrator config).
-            model:   OpenAI model name to use for dependency analysis.
+            api_key: API key — empty or "ollama" routes to local Ollama; otherwise OpenAI.
+            model:   Model name to use for dependency analysis.
 
         Returns:
             Ordered list of :class:`StoryQueueItem` objects (position 0 first).

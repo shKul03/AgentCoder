@@ -10,24 +10,17 @@ aider       Aider AI pair-programmer
 
 claude      Anthropic Claude Code CLI
             ``claude --print [--model M] PROMPT``
-
-gemini      Via OpenAI-compatible API adapter (``api_adapter.py``)
-qwen        Via OpenAI-compatible API adapter (``api_adapter.py``)
-deepseek    Via OpenAI-compatible API adapter (``api_adapter.py``)
-copilot     Via OpenAI-compatible API adapter (``api_adapter.py``)
 """
 
 from __future__ import annotations
 
-import os
 import shutil
-import sys
 
 # Tools that have native CLI binaries
 CLI_TOOLS: list[str] = ["codex", "aider", "claude"]
 
-# Tools that use the unified OpenAI-compatible api_adapter.py
-API_TOOLS: list[str] = ["gemini", "qwen", "deepseek", "copilot"]
+# No API-adapter tools — all routing is done via native CLI binaries or Ollama
+API_TOOLS: list[str] = []
 
 # All supported tools
 SUPPORTED_TOOLS: list[str] = CLI_TOOLS + API_TOOLS
@@ -37,19 +30,10 @@ TOOL_LABELS: dict[str, str] = {
     "codex": "Codex (OpenAI)",
     "aider": "Aider",
     "claude": "Claude Code (Anthropic)",
-    "gemini": "Gemini (Google)",
-    "qwen": "Qwen Coder (Alibaba)",
-    "deepseek": "DeepSeek Coder",
-    "copilot": "GitHub Copilot",
 }
 
-# Map of API tools → their required env var for credential checks
-_API_TOOL_ENV_KEYS: dict[str, str] = {
-    "gemini": "GEMINI_API_KEY",
-    "qwen": "DASHSCOPE_API_KEY",
-    "deepseek": "DEEPSEEK_API_KEY",
-    "copilot": "GITHUB_TOKEN",
-}
+# No API tools — empty
+_API_TOOL_ENV_KEYS: dict[str, str] = {}
 
 
 class UnsupportedToolError(ValueError):
@@ -106,22 +90,6 @@ def build_command(tool: str, model: str, prompt: str, working_dir: str = "",
         cmd.append("-" if use_stdin else prompt)
         return cmd
 
-    if tool in API_TOOLS:
-        # Route through the unified api_adapter as a subprocess.
-        # When use_stdin=True, pass '-' so the adapter reads the prompt from stdin
-        # (avoids the Windows 8191-char command-line length limit for large prompts).
-        cmd = [
-            sys.executable, "-m", "agent_os.codex.api_adapter",
-            "--tool", tool,
-        ]
-        if not use_stdin:
-            cmd.extend(["--prompt", prompt])
-        if model:
-            cmd.extend(["--model", model])
-        if use_stdin:
-            cmd.append("--stdin")
-        return cmd
-
     raise UnsupportedToolError(
         f"Unknown CLI tool '{tool}'. Supported tools: {', '.join(SUPPORTED_TOOLS)}"
     )
@@ -153,11 +121,5 @@ def is_tool_available(tool: str) -> bool:
         return shutil.which("aider") is not None
     if tool in ("claude", "claude-code"):
         return shutil.which("claude") is not None
-
-    # API tools — check for credentials
-    env_key = _API_TOOL_ENV_KEYS.get(tool, "")
-    if env_key:
-        val = os.environ.get(env_key, "")
-        return bool(val and not val.startswith("***"))
 
     return False
